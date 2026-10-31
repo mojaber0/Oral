@@ -59,6 +59,7 @@
     <script>
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
+        let isMuted = false;
 
         function initAudio() {
             if (!audioCtx) audioCtx = new AudioContext();
@@ -66,6 +67,7 @@
         }
 
         function playClick() {
+            if (isMuted) return;
             initAudio();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
@@ -79,6 +81,7 @@
         }
 
         function playFlip() {
+            if (isMuted) return;
             initAudio();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
@@ -92,6 +95,7 @@
         }
 
         function playSuccess() {
+            if (isMuted) return;
             initAudio();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
@@ -105,6 +109,7 @@
         }
 
         function playError() {
+            if (isMuted) return;
             initAudio();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
@@ -162,6 +167,9 @@
                 <select id="global-category-filter" onchange="applyCategoryFilter()" class="bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-white text-sm rounded-lg p-2 font-bold outline-none cursor-pointer">
                     <option value="all">الكل (جميع الفئات)</option>
                 </select>
+                <button id="fav-filter-btn" onclick="toggleFavFilter()" title="عرض المفضلة فقط" class="px-3 py-2 rounded-lg text-xs font-bold transition-colors bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+                    <i class="fa-regular fa-star"></i> المفضلة فقط
+                </button>
             </div>
 
             <div class="flex items-center gap-2">
@@ -172,6 +180,9 @@
                 </select>
                 <button onclick="openNameModal()" title="تعديل الاسم" class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition-colors">
                     <i class="fa-solid fa-user-pen"></i>
+                </button>
+                <button id="mute-btn" onclick="toggleMute()" title="كتم / تشغيل صوت الموقع" class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition-colors">
+                    <i class="fa-solid fa-volume-high"></i>
                 </button>
             </div>
         </div>
@@ -184,8 +195,8 @@
         <section id="view-study" class="view-section flex flex-col items-center">
             <div id="study-empty" class="hidden text-center py-20 bg-white dark:bg-slate-800 w-full rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
                 <i class="fa-solid fa-box-open text-6xl text-slate-300 mb-4"></i>
-                <h2 class="text-xl font-bold text-slate-600 dark:text-slate-300">لا يوجد أسئلة!</h2>
-                <p class="text-slate-500 mb-6">قم بإضافة أسئلة أو تغيير الفئة للبدء بالدراسة.</p>
+                <h2 id="study-empty-title" class="text-xl font-bold text-slate-600 dark:text-slate-300">لا يوجد أسئلة!</h2>
+                <p id="study-empty-desc" class="text-slate-500 mb-6">قم بإضافة أسئلة أو تغيير الفئة للبدء بالدراسة.</p>
                 <button onclick="switchView('add')" class="bg-teal-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">إضافة أسئلة الآن</button>
             </div>
 
@@ -195,18 +206,23 @@
                     <div class="absolute w-full h-full backface-hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col p-8">
                         <div class="flex justify-between items-start mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
                             <span id="study-q-category" class="bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider"></span>
-                            <span class="text-slate-400 text-sm font-bold"><i class="fa-solid fa-hand-pointer animate-pulse"></i> اضغط للقلب</span>
+                            <div class="flex items-center gap-3">
+                                <button onclick="toggleFav(event)" title="مفضلة" class="fav-btn text-2xl text-slate-300 hover:text-amber-400 transition-colors"><i class="fa-regular fa-star"></i></button>
+                                <span class="text-slate-400 text-sm font-bold"><i class="fa-solid fa-hand-pointer animate-pulse"></i> اضغط للقلب</span>
+                            </div>
                         </div>
                         <div class="flex-grow flex items-center justify-center text-center">
                             <h2 id="study-q-text" class="text-2xl md:text-3xl font-extrabold text-slate-800 dark:text-white leading-snug" dir="ltr"></h2>
                         </div>
+
                     </div>
 
                     <!-- BACK -->
                     <div class="absolute w-full h-full backface-hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl rotate-y-180 flex flex-col p-8 shadow-xl">
                         <div class="flex-grow overflow-y-auto custom-scrollbar pr-2 mb-4 text-left" dir="ltr">
-                            <h3 class="text-teal-600 font-bold mb-4 flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-2 justify-end" dir="rtl">
-                                <i class="fa-solid fa-check-double"></i> الإجابة
+                            <h3 class="text-teal-600 font-bold mb-4 flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-2 justify-between" dir="rtl">
+                                <span><i class="fa-solid fa-check-double"></i> الإجابة</span>
+                                <button onclick="toggleFav(event)" title="مفضلة" class="fav-btn text-2xl text-slate-300 hover:text-amber-400 transition-colors"><i class="fa-regular fa-star"></i></button>
                             </h3>
                             <ul id="study-a-text" class="space-y-3 text-xl md:text-2xl font-bold text-slate-700 dark:text-slate-200 list-disc pl-6 leading-relaxed"></ul>
                             
@@ -218,13 +234,13 @@
                         </div>
 
                         <div class="grid grid-cols-3 gap-3 border-t border-slate-100 dark:border-slate-700 pt-4" dir="rtl">
-                            <button onclick="rateQuestion(event, 20)" class="flex flex-col items-center justify-center py-3 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded-xl font-bold transition-colors">
+                            <button onclick="rateQuestion(event, 'hard')" class="flex flex-col items-center justify-center py-3 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded-xl font-bold transition-colors">
                                 <i class="fa-solid fa-face-frown mb-1 text-xl"></i> صعب
                             </button>
-                            <button onclick="rateQuestion(event, 5)" class="flex flex-col items-center justify-center py-3 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300 rounded-xl font-bold transition-colors">
+                            <button onclick="rateQuestion(event, 'medium')" class="flex flex-col items-center justify-center py-3 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300 rounded-xl font-bold transition-colors">
                                 <i class="fa-solid fa-face-meh mb-1 text-xl"></i> متوسط
                             </button>
-                            <button onclick="rateQuestion(event, 1)" class="flex flex-col items-center justify-center py-3 bg-green-50 hover:bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300 rounded-xl font-bold transition-colors">
+                            <button onclick="rateQuestion(event, 'easy')" class="flex flex-col items-center justify-center py-3 bg-green-50 hover:bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300 rounded-xl font-bold transition-colors">
                                 <i class="fa-solid fa-face-smile mb-1 text-xl"></i> سهل
                             </button>
                         </div>
@@ -247,6 +263,9 @@
                         <input type="number" id="exam-time" value="5" min="1" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-3 font-bold text-slate-800 dark:text-white outline-none">
                     </div>
                 </div>
+                <label class="flex items-center gap-2 mb-6 font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                    <input type="checkbox" id="exam-focus-weak" checked class="accent-teal-600"> ركّز الامتحان على أسئلتي الضعيفة (الصعبة أكثر احتمالاً للظهور)
+                </label>
                 <button onclick="startExam()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl text-lg transition-colors">
                     ابدأ الامتحان الآن <i class="fa-solid fa-rocket ml-2"></i>
                 </button>
@@ -284,8 +303,9 @@
                 <i class="fa-solid fa-trophy text-6xl text-yellow-400 mb-6"></i>
                 <h2 class="text-3xl font-extrabold text-slate-800 dark:text-white mb-4">انتهى الامتحان!</h2>
                 <div class="text-2xl font-bold text-slate-600 dark:text-slate-300 mb-8">
-                    نتيجتك: <span id="exam-score-correct" class="text-green-600">0</span> / <span id="exam-score-total">0</span>
+                    نتيجتك: <span id="exam-score-correct" class="text-green-600">0</span> / <span id="exam-score-total">0</span> <span id="exam-score-pct" class="text-base text-slate-400"></span>
                 </div>
+                <div id="exam-missed" class="hidden text-right mb-8 space-y-2"></div>
                 <button onclick="resetExam()" class="bg-teal-600 text-white font-bold py-3 px-8 rounded-xl transition-colors">إنهاء وإغلاق</button>
             </div>
         </section>
@@ -295,7 +315,7 @@
             <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h2 class="text-2xl font-bold text-slate-800 dark:text-white mb-6 border-b pb-4 dark:border-slate-700"><i class="fa-solid fa-chart-pie text-teal-600"></i> إحصائيات الأداء والتقدم</h2>
                 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     <div class="bg-teal-50 dark:bg-teal-950/40 p-5 rounded-2xl border border-teal-100 dark:border-teal-900 text-center">
                         <h3 class="text-teal-800 dark:text-teal-300 font-bold mb-1">إجمالي الأسئلة</h3>
                         <p id="stat-total" class="text-3xl font-extrabold text-teal-600">0</p>
@@ -308,7 +328,33 @@
                         <h3 class="text-red-800 dark:text-red-300 font-bold mb-1">تحتاج مراجعة (صعب)</h3>
                         <p id="stat-hard" class="text-3xl font-extrabold text-red-600">0</p>
                     </div>
+                    <div class="bg-amber-50 dark:bg-amber-950/40 p-5 rounded-2xl border border-amber-100 dark:border-amber-900 text-center">
+                        <h3 class="text-amber-800 dark:text-amber-300 font-bold mb-1">المفضلة ⭐</h3>
+                        <p id="stat-fav" class="text-3xl font-extrabold text-amber-500">0</p>
+                    </div>
                 </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-sky-50 dark:bg-sky-950/40 p-5 rounded-2xl border border-sky-100 dark:border-sky-900 text-center">
+                        <h3 class="text-sky-800 dark:text-sky-300 font-bold mb-1">لم تراجعها +14 يوم</h3>
+                        <p id="stat-stale" class="text-3xl font-extrabold text-sky-600">0</p>
+                    </div>
+                    <div class="bg-indigo-50 dark:bg-indigo-950/40 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-900 text-center">
+                        <h3 class="text-indigo-800 dark:text-indigo-300 font-bold mb-1">جديدة (لم تُراجَع)</h3>
+                        <p id="stat-new" class="text-3xl font-extrabold text-indigo-600">0</p>
+                    </div>
+                    <div class="bg-emerald-50 dark:bg-emerald-950/40 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900 text-center">
+                        <h3 class="text-emerald-800 dark:text-emerald-300 font-bold mb-1">متوسط الصعوبة (من 10)</h3>
+                        <p id="stat-avg" class="text-3xl font-extrabold text-emerald-600">0</p>
+                    </div>
+                    <div class="bg-violet-50 dark:bg-violet-950/40 p-5 rounded-2xl border border-violet-100 dark:border-violet-900 text-center">
+                        <h3 class="text-violet-800 dark:text-violet-300 font-bold mb-1">نسبة الإتقان</h3>
+                        <p id="stat-mastery-pct" class="text-3xl font-extrabold text-violet-600">0%</p>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4">أصعب أسئلتك حالياً:</h3>
+                <div id="weak-list" class="space-y-2 mb-8"></div>
 
                 <h3 class="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4">التوزيع حسب الفئات (Categories):</h3>
                 <div id="category-stats-container" class="space-y-3"></div>
@@ -368,13 +414,38 @@
                     </div>
                 </div>
                 
+                <div class="mb-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600">
+                    <h3 class="font-bold text-slate-700 dark:text-slate-200 mb-3"><i class="fa-solid fa-right-left text-teal-600"></i> تصدير / استيراد (للمشاركة أو نسخة احتياطية)</h3>
+                    <div class="flex flex-col md:flex-row gap-3 md:items-center flex-wrap">
+                        <select id="export-scope" class="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-white text-sm rounded-lg p-2 font-bold outline-none">
+                            <option value="all">كل الأسئلة</option>
+                            <option value="filter">الفئة المختارة في الفلتر</option>
+                            <option value="fav">المفضلة فقط</option>
+                        </select>
+                        <label class="flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300 cursor-pointer">
+                            <input type="checkbox" id="export-progress" checked class="accent-teal-600"> تضمين التقدم (الصعوبة وتاريخ المراجعة) والمفضلة
+                        </label>
+                        <div class="flex flex-wrap gap-2 md:mr-auto">
+                            <button onclick="exportQuestions()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm px-4 py-2 rounded-lg transition-colors"><i class="fa-solid fa-download"></i> تصدير ملف</button>
+                            <button onclick="shareQuestions()" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm px-4 py-2 rounded-lg transition-colors"><i class="fa-solid fa-share-nodes"></i> مشاركة</button>
+                            <label class="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-500 text-slate-700 dark:text-white font-bold text-sm px-4 py-2 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors">
+                                <i class="fa-solid fa-upload"></i> استيراد ملف
+                                <input type="file" accept=".json,application/json" class="hidden" onchange="importFromFile(this)">
+                            </label>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-3 font-semibold">الاستيراد يدمج الأسئلة مع أسئلتك الحالية ويتخطى المكرر — ما بيمسح ولا بيستبدل شي.</p>
+                </div>
+
                 <div class="overflow-x-auto">
                     <table class="w-full text-right text-sm">
                         <thead class="bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-600">
                             <tr>
+                                <th class="p-3 text-center w-10">⭐</th>
                                 <th class="p-3">الفئة (Category)</th>
                                 <th class="p-3">السؤال</th>
-                                <th class="p-3">الوزن</th>
+                                <th class="p-3">المستوى</th>
+                                <th class="p-3">آخر مراجعة</th>
                                 <th class="p-3 text-center">إجراء</th>
                             </tr>
                         </thead>
@@ -394,28 +465,306 @@
 
     <!-- App Script Logic -->
     <script>
-        let questions = JSON.parse(localStorage.getItem('surgical_qbank')) || [];
+        // ================= Storage layer: IndexedDB =================
+        const DB_NAME = 'surgery_oral_db';
+        const STORE = 'kv';
+        let dbPromise = null;
+
+        function openDB() {
+            if (dbPromise) return dbPromise;
+            dbPromise = new Promise((resolve, reject) => {
+                if (!window.indexedDB) return reject(new Error('IndexedDB not supported'));
+                const req = indexedDB.open(DB_NAME, 1);
+                req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+                req.onblocked = () => reject(new Error('IndexedDB blocked'));
+            });
+            return dbPromise;
+        }
+
+        function idbGet(key) {
+            return openDB().then(db => new Promise((resolve, reject) => {
+                const r = db.transaction(STORE, 'readonly').objectStore(STORE).get(key);
+                r.onsuccess = () => resolve(r.result);
+                r.onerror = () => reject(r.error);
+            }));
+        }
+
+        function idbSet(key, value) {
+            return openDB().then(db => new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE, 'readwrite');
+                tx.objectStore(STORE).put(value, key);
+                tx.oncomplete = () => resolve();          // resolves only after the write is really committed
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error || new Error('aborted'));
+            }));
+        }
+
+        let saveQueue = Promise.resolve();   // serialises question saves so they never race
+        function notifyStorageError(e) {
+            console.error('Storage error:', e);
+            showToast('⚠️ تعذّر الحفظ في IndexedDB — صدّر نسخة احتياطية من تبويب الإدارة', true);
+        }
+
+        function showToast(msg, isError) {
+            const d = document.createElement('div');
+            d.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-3 rounded-xl shadow-lg font-bold text-sm text-white max-w-[90vw] text-center ' + (isError ? 'bg-red-600' : 'bg-slate-900');
+            d.textContent = msg;
+            document.body.appendChild(d);
+            setTimeout(() => d.remove(), 3500);
+        }
+
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        // ================= App state =================
+        let questions = [];
         let activeFilter = 'all';
         let currentStudyQuestion = null;
-        let userName = localStorage.getItem('surgical_user_name') || '';
-        let currentTheme = localStorage.getItem('surgical_theme') || 'medical';
+        let userName = '';
+        let currentTheme = 'medical';
+        let favOnly = false;
+        let dbFailed = false;
 
-        // Init Theme & Name
-        document.documentElement.className = `theme-${currentTheme}`;
-        if(currentTheme === 'dark') document.documentElement.classList.add('dark');
-        document.getElementById('theme-selector').value = currentTheme;
+        function applyTheme() {
+            document.documentElement.className = `theme-${currentTheme}`;
+            if (currentTheme === 'dark') document.documentElement.classList.add('dark');
+            document.getElementById('theme-selector').value = currentTheme;
+        }
 
-        if(!userName) {
-            document.getElementById('name-modal').classList.remove('hidden');
-        } else {
-            document.getElementById('welcome-user-display').innerText = userName;
+        async function initApp() {
+            try {
+                const [q, n, th, m, f, migrated] = await Promise.all([
+                    idbGet('questions'), idbGet('user_name'), idbGet('theme'),
+                    idbGet('muted'), idbGet('fav_only'), idbGet('migrated_from_localstorage')
+                ]);
+                questions = Array.isArray(q) ? q : [];
+                userName = n || '';
+                currentTheme = th || 'medical';
+                isMuted = !!m;
+                favOnly = !!f;
+                
+
+
+                // One-time migration from the old localStorage (the old keys are left untouched as a backup)
+                if (!migrated) {
+                    try {
+                        if (!Array.isArray(q)) {
+                            const oldQ = JSON.parse(localStorage.getItem('surgical_qbank') || 'null');
+                            if (Array.isArray(oldQ)) questions = oldQ;
+                        }
+                        if (!n) userName = localStorage.getItem('surgical_user_name') || '';
+                        if (!th) currentTheme = localStorage.getItem('surgical_theme') || 'medical';
+                    } catch (e) { console.warn('Migration read failed', e); }
+                    await idbSet('questions', JSON.parse(JSON.stringify(questions)));
+                    await idbSet('user_name', userName);
+                    await idbSet('theme', currentTheme);
+                    await idbSet('migrated_from_localstorage', true);
+                }
+
+                if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+            } catch (e) {
+                // IndexedDB unavailable: read-only fallback from localStorage so the app still opens
+                console.error('IndexedDB init failed', e);
+                dbFailed = true;
+                try {
+                    questions = JSON.parse(localStorage.getItem('surgical_qbank') || '[]') || [];
+                    userName = localStorage.getItem('surgical_user_name') || '';
+                    currentTheme = localStorage.getItem('surgical_theme') || 'medical';
+                } catch (_) {}
+                notifyStorageError(e);
+            }
+
+            {   // give every question its spaced-repetition fields (also migrates old data)
+                let changed = false;
+                questions.forEach(q => { if (ensureSrs(q)) changed = true; });
+                if (changed && !dbFailed) saveQuestions();
+            }
+
+            applyTheme();
+            updateMuteButton();
+            updateFavFilterButton();
+            if (!userName) {
+                document.getElementById('name-modal').classList.remove('hidden');
+            } else {
+                document.getElementById('welcome-user-display').innerText = userName;
+            }
+            updateCategoryDropdowns();
+            initStudyMode();
+        }
+
+        // ================= Mute =================
+        function updateMuteButton() {
+            const btn = document.getElementById('mute-btn');
+            btn.innerHTML = isMuted ? '<i class="fa-solid fa-volume-xmark text-red-500"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+            btn.title = isMuted ? 'تشغيل الصوت' : 'كتم الصوت';
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            idbSet('muted', isMuted).catch(notifyStorageError);
+            updateMuteButton();
+            if (!isMuted) playClick();
+        }
+
+        // ================= Favorites =================
+        function updateFavButtons() {
+            const on = !!(currentStudyQuestion && currentStudyQuestion.fav);
+            document.querySelectorAll('.fav-btn').forEach(b => {
+                b.innerHTML = on ? '<i class="fa-solid fa-star"></i>' : '<i class="fa-regular fa-star"></i>';
+                b.classList.toggle('text-amber-400', on);
+                b.classList.toggle('text-slate-300', !on);
+            });
+        }
+
+        function toggleFav(event) {
+            event.stopPropagation();
+            if (!currentStudyQuestion) return;
+            const q = questions.find(x => x.id === currentStudyQuestion.id);
+            if (!q) return;
+            q.fav = !q.fav;
+            currentStudyQuestion = q;
+            saveQuestions();
+            updateFavButtons();
+            if (q.fav) playSuccess(); else playClick();
+        }
+
+        function toggleFavById(id) {
+            const q = questions.find(x => x.id === id);
+            if (!q) return;
+            q.fav = !q.fav;
+            saveQuestions();
+            renderManageList();
+        }
+
+        function updateFavFilterButton() {
+            const btn = document.getElementById('fav-filter-btn');
+            btn.className = 'px-3 py-2 rounded-lg text-xs font-bold transition-colors ' +
+                (favOnly ? 'bg-amber-400 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200');
+            btn.innerHTML = `<i class="${favOnly ? 'fa-solid' : 'fa-regular'} fa-star"></i> المفضلة فقط`;
+        }
+
+        function toggleFavFilter() {
+            playClick();
+            favOnly = !favOnly;
+            idbSet('fav_only', favOnly).catch(notifyStorageError);
+            updateFavFilterButton();
+            if (!document.getElementById('view-study').classList.contains('hidden')) initStudyMode();
+        }
+
+        // ================= Export / Import =================
+        function getExportList() {
+            const scope = document.getElementById('export-scope').value;
+            const withProgress = document.getElementById('export-progress').checked;
+            let list = questions;
+            if (scope === 'filter' && activeFilter !== 'all') list = list.filter(q => q.category === activeFilter);
+            if (scope === 'fav') list = list.filter(q => q.fav);
+            return list.map(q => {
+                const o = { ...q };
+                delete o.id;
+                if (!withProgress) { ['weight','fav','diff','reps','lastSeen','box','due','lapses'].forEach(k => delete o[k]); }
+                else if (!o.fav) delete o.fav;
+                return o;
+            });
+        }
+
+        function buildExportFile() {
+            const list = getExportList();
+            if (!list.length) { showToast('لا يوجد أسئلة لتصديرها بهذا الاختيار', true); return null; }
+            const payload = { app: 'surgery-oral', version: 1, exportedAt: new Date().toISOString(), count: list.length, questions: list };
+            const name = `surgery-oral-${new Date().toISOString().slice(0, 10)}.json`;
+            return { file: new File([JSON.stringify(payload, null, 2)], name, { type: 'application/json' }), count: list.length, name };
+        }
+
+        function exportQuestions() {
+            playClick();
+            const r = buildExportFile();
+            if (!r) return;
+            const url = URL.createObjectURL(r.file);
+            const a = document.createElement('a');
+            a.href = url; a.download = r.name;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            showToast(`تم تصدير ${r.count} سؤال`);
+        }
+
+        async function shareQuestions() {
+            playClick();
+            const r = buildExportFile();
+            if (!r) return;
+            try {
+                if (navigator.canShare && navigator.canShare({ files: [r.file] })) {
+                    await navigator.share({ files: [r.file], title: 'Surgery Oral' });
+                } else {
+                    exportQuestions();   // browser can't share files -> plain download
+                }
+            } catch (e) {
+                if (e && e.name !== 'AbortError') exportQuestions();
+            }
+        }
+
+        function importFromFile(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    let parsed = JSON.parse(reader.result);
+                    if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.questions)) parsed = parsed.questions;
+                    if (!Array.isArray(parsed)) throw new Error('bad format');
+
+                    const keyOf = (c, q) => String(c || 'General').trim().toLowerCase() + '||' + String(q).trim().toLowerCase();
+                    const seen = new Set(questions.map(q => keyOf(q.category, q.question)));
+                    let added = 0, skipped = 0, invalid = 0;
+
+                    parsed.forEach(item => {
+                        if (!item || typeof item.question !== 'string' || !item.question.trim() || !item.answer) { invalid++; return; }
+                        const category = String(item.category || 'General').trim() || 'General';
+                        const k = keyOf(category, item.question);
+                        if (seen.has(k)) { skipped++; return; }
+                        const answer = (Array.isArray(item.answer) ? item.answer : String(item.answer).split('\n'))
+                            .map(a => String(a).trim()).filter(Boolean);
+                        if (!answer.length) { invalid++; return; }
+                        seen.add(k);
+                        const nq = {
+                            id: generateId(),
+                            category,
+                            question: item.question.trim(),
+                            answer,
+                            hint: String(item.hint || item.dr_monic_hint || ''),
+                            weight: [1, 5, 20].includes(item.weight) ? item.weight : 5,
+                            fav: !!item.fav
+                        };
+                        if (Number.isFinite(item.diff)) {
+                            nq.diff = clampDiff(item.diff);
+                            if (Number.isFinite(item.reps)) nq.reps = item.reps;
+                            if (Number.isFinite(item.lastSeen)) nq.lastSeen = item.lastSeen;
+                        }
+                        questions.push(nq);
+                        added++;
+                    });
+
+                    saveQuestions();
+                    renderManageList();
+                    playSuccess();
+                    showToast(`تمت إضافة ${added} سؤال` + (skipped ? ` • تخطي ${skipped} مكرر` : '') + (invalid ? ` • ${invalid} غير صالح` : ''));
+                } catch (e) {
+                    playError();
+                    showToast('الملف غير صالح — لازم يكون ملف JSON مُصدَّر من التطبيق', true);
+                }
+                input.value = '';
+            };
+            reader.onerror = () => { showToast('تعذّرت قراءة الملف', true); input.value = ''; };
+            reader.readAsText(file);
         }
 
         function saveUserName() {
             const name = document.getElementById('user-name-input').value.trim();
             if(!name) return;
             userName = name;
-            localStorage.setItem('surgical_user_name', userName);
+            idbSet('user_name', userName).catch(notifyStorageError);
             document.getElementById('welcome-user-display').innerText = userName;
             document.getElementById('name-modal').classList.add('hidden');
             playSuccess();
@@ -428,7 +777,7 @@
 
         function changeTheme(theme) {
             currentTheme = theme;
-            localStorage.setItem('surgical_theme', currentTheme);
+            idbSet('theme', currentTheme).catch(notifyStorageError);
             document.documentElement.className = `theme-${currentTheme}`;
             if(currentTheme === 'dark') {
                 document.documentElement.classList.add('dark');
@@ -439,17 +788,96 @@
         }
 
         function saveQuestions() {
-            localStorage.setItem('surgical_qbank', JSON.stringify(questions));
+            questions.forEach(ensureSrs);
+            const snapshot = JSON.parse(JSON.stringify(questions));
+            saveQueue = saveQueue
+                .then(() => idbSet('questions', snapshot))
+                .catch(notifyStorageError);
             updateCategoryDropdowns();
+            return saveQueue;
         }
 
         function generateId() {
             return Date.now().toString(36) + Math.random().toString(36).substr(2);
         }
 
+        // ================= Adaptive difficulty (no schedule) =================
+        // Every question has a difficulty score `diff` (1 = easy ... 10 = hard) that moves in small steps.
+        // The chance of showing a question = its score, plus a slow bonus the longer it has not been seen.
+        const DAY_MS = 86400000;
+        const DIFF_MIN = 1, DIFF_MAX = 10, DIFF_NEW = 5;
+        const HARD_AT = 6.5, EASY_AT = 3;
+        
+        let sessionRecent = [];                     // ids shown recently (cooldown)
+
+        function clampDiff(d) { return Math.max(DIFF_MIN, Math.min(DIFF_MAX, d)); }
+        function weightFromDiff(d) { return d >= HARD_AT ? 20 : (d <= EASY_AT ? 1 : 5); }
+
+        // Adds missing fields and migrates older data (weight-only, or the previous schedule version). Returns true if it changed anything.
+        function ensureSrs(q) {
+            let changed = false;
+            if (!Number.isFinite(q.diff)) {
+                if (Number.isFinite(q.box)) q.diff = !q.reps ? DIFF_NEW : (q.box <= 1 ? 8 : (q.box >= 4 ? 2 : DIFF_NEW));
+                else q.diff = q.weight === 20 ? 8 : (q.weight === 1 ? 2 : DIFF_NEW);
+                changed = true;
+            }
+            if (!Number.isFinite(q.reps)) { q.reps = (q.weight === 20 || q.weight === 1) ? 1 : 0; changed = true; }
+            if (!Number.isFinite(q.lastSeen)) { q.lastSeen = q.reps ? Date.now() : 0; changed = true; }
+            ['box', 'due', 'lapses'].forEach(k => { if (k in q) { delete q[k]; changed = true; } });
+            const w = weightFromDiff(q.diff);
+            if (q.weight !== w) { q.weight = w; changed = true; }
+            return changed;
+        }
+
+        // grade: 'hard' | 'medium' | 'easy'  — small steps, so one answer never erases the history
+        function applyGrade(q, grade) {
+            ensureSrs(q);
+            if (grade === 'hard') q.diff = clampDiff(q.diff + 2.5);
+            else if (grade === 'medium') q.diff = clampDiff(q.diff - 1.5);
+            else q.diff = clampDiff(q.diff - 3);
+            q.weight = weightFromDiff(q.diff);
+            q.reps++;
+            q.lastSeen = Date.now();
+        }
+
+        // difficulty + slow bonus for time since last seen (+1 per week, max +5)
+        function pickWeight(q, now) {
+            if (!q.reps) return 6;                  // unseen questions flow in a bit above neutral
+            const days = Math.max(0, (now - (q.lastSeen || now)) / DAY_MS);
+            return Math.max(1, Math.min(DIFF_MAX, q.diff + Math.min(5, days / 7)));
+        }
+
+        function pickWeighted(list, wfn) {
+            const total = list.reduce((s, q) => s + wfn(q), 0);
+            let r = Math.random() * total;
+            for (const q of list) { r -= wfn(q); if (r <= 0) return q; }
+            return list[list.length - 1];
+        }
+
+        function renderSrsStats() {
+            const now = Date.now();
+            questions.forEach(ensureSrs);
+            const seen = questions.filter(q => q.reps > 0);
+            document.getElementById('stat-stale').innerText = seen.filter(q => now - q.lastSeen > 14 * DAY_MS).length;
+            document.getElementById('stat-new').innerText = questions.length - seen.length;
+            document.getElementById('stat-avg').innerText = seen.length ? (seen.reduce((s, q) => s + q.diff, 0) / seen.length).toFixed(1) : '—';
+            const mastered = seen.filter(q => q.diff <= EASY_AT).length;
+            document.getElementById('stat-mastery-pct').innerText = questions.length ? Math.round(mastered / questions.length * 100) + '%' : '0%';
+
+            const weak = seen.filter(q => q.diff >= HARD_AT).sort((a, b) => b.diff - a.diff).slice(0, 5);
+            const wl = document.getElementById('weak-list');
+            wl.innerHTML = weak.length ? weak.map(q => `
+                <div class="flex justify-between items-center gap-3 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg text-sm font-semibold">
+                    <span dir="ltr" class="truncate text-slate-700 dark:text-slate-200">${esc(q.question)}</span>
+                    <span class="text-rose-600 dark:text-rose-300 shrink-0">صعوبة ${q.diff.toFixed(1)}/10</span>
+                </div>`).join('') : '<p class="text-slate-400 text-sm">لسا ما في أسئلة صعبة — ابدأ دراسة وبتظهر هون.</p>';
+        }
+
         function getActiveQuestions() {
-            if (activeFilter === 'all') return questions;
-            return questions.filter(q => q.category === activeFilter);
+            let list = questions;
+            if (activeFilter !== 'all') list = list.filter(q => q.category === activeFilter);
+            if (favOnly) list = list.filter(q => q.fav);
+            return list;
         }
 
         function updateCategoryDropdowns() {
@@ -459,7 +887,7 @@
             const currentVal = globalFilter.value;
             globalFilter.innerHTML = '<option value="all">الكل (جميع الفئات)</option>';
             categories.forEach(cat => {
-                globalFilter.innerHTML += `<option value="${cat}">${cat}</option>`;
+                globalFilter.innerHTML += `<option value="${esc(cat)}">${esc(cat)}</option>`;
             });
             
             if (currentVal && (currentVal === 'all' || categories.includes(currentVal))) {
@@ -473,7 +901,7 @@
             if (dataList) {
                 dataList.innerHTML = '';
                 categories.forEach(cat => {
-                    dataList.innerHTML += `<option value="${cat}">`;
+                    dataList.innerHTML += `<option value="${esc(cat)}">`;
                 });
             }
             
@@ -520,8 +948,13 @@
             snapCardToFront(innerCard);
 
             if (activeQ.length === 0) {
+                document.getElementById('study-empty-title').innerText = favOnly ? 'لا يوجد أسئلة مفضلة!' : 'لا يوجد أسئلة!';
+                document.getElementById('study-empty-desc').innerText = favOnly
+                    ? 'اضغط على ⭐ في أي سؤال لإضافته للمفضلة، أو ألغِ فلتر المفضلة.'
+                    : 'قم بإضافة أسئلة أو تغيير الفئة للبدء بالدراسة.';
                 emptyState.classList.remove('hidden');
                 cardWrapper.classList.add('hidden');
+                
             } else {
                 emptyState.classList.add('hidden');
                 cardWrapper.classList.remove('hidden');
@@ -531,26 +964,20 @@
 
         function loadNextStudyQuestion() {
             const activeQ = getActiveQuestions();
-            if(activeQ.length === 0) return;
+            if (activeQ.length === 0) return;
+            activeQ.forEach(ensureSrs);
 
-            const totalWeight = activeQ.reduce((sum, q) => sum + (q.weight || 5), 0);
-            let randomNum = Math.random() * totalWeight;
-            
-            let selected = activeQ[0];
-            for (const q of activeQ) {
-                randomNum -= (q.weight || 5);
-                if (randomNum <= 0) {
-                    if(activeQ.length > 1 && currentStudyQuestion && q.id === currentStudyQuestion.id) continue;
-                    selected = q;
-                    break;
-                }
-            }
-            
-            if(activeQ.length > 1 && currentStudyQuestion && selected.id === currentStudyQuestion.id) {
-                 selected = activeQ.find(q => q.id !== currentStudyQuestion.id) || activeQ[0];
-            }
+            const now = Date.now();
+            const cd = Math.min(4, activeQ.length - 1);                       // cooldown: don't repeat the last few cards
+            const recent = new Set(cd > 0 ? sessionRecent.slice(-cd) : []);
+            let pool = activeQ.filter(q => !recent.has(q.id));
+            if (!pool.length) pool = activeQ;
 
+            const selected = pickWeighted(pool, q => pickWeight(q, now));
             currentStudyQuestion = selected;
+            sessionRecent.push(selected.id);
+            if (sessionRecent.length > 30) sessionRecent.shift();
+
             renderStudyCardContent();
         }
 
@@ -571,7 +998,7 @@
             }
 
             answers.forEach(a => {
-                ul.innerHTML += `<li>${a}</li>`;
+                ul.innerHTML += `<li>${esc(a)}</li>`;
             });
 
             // Hint handling
@@ -583,6 +1010,8 @@
             } else {
                 hintContainer.classList.add('hidden');
             }
+                        
+            updateFavButtons();
         }
 
         function handleCardClick(event) {
@@ -592,14 +1021,14 @@
             innerCard.classList.toggle('rotate-y-180');
         }
 
-        function rateQuestion(event, newWeight) {
-            event.stopPropagation(); 
+        function rateQuestion(event, grade) {
+            event.stopPropagation();
             playSuccess();
-            
-            if(currentStudyQuestion) {
-                const qIndex = questions.findIndex(q => q.id === currentStudyQuestion.id);
-                if(qIndex !== -1) {
-                    questions[qIndex].weight = newWeight;
+
+            if (currentStudyQuestion) {
+                const q = questions.find(x => x.id === currentStudyQuestion.id);
+                if (q) {
+                    applyGrade(q, grade);
                     saveQuestions();
                 }
             }
@@ -619,11 +1048,14 @@
         // --- Analytics Dashboard Stats ---
         function renderStats() {
             document.getElementById('stat-total').innerText = questions.length;
-            const easyCount = questions.filter(q => q.weight === 1).length;
-            const hardCount = questions.filter(q => q.weight === 20).length;
+            questions.forEach(ensureSrs);
+            const easyCount = questions.filter(q => q.reps > 0 && q.diff <= EASY_AT).length;
+            const hardCount = questions.filter(q => q.reps > 0 && q.diff >= HARD_AT).length;
             
             document.getElementById('stat-easy').innerText = easyCount;
             document.getElementById('stat-hard').innerText = hardCount;
+            document.getElementById('stat-fav').innerText = questions.filter(q => q.fav).length;
+            renderSrsStats();
 
             const container = document.getElementById('category-stats-container');
             container.innerHTML = '';
@@ -642,7 +1074,7 @@
                 container.innerHTML += `
                     <div class="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
                         <div class="flex justify-between font-bold mb-2">
-                            <span class="text-slate-700 dark:text-slate-200">${cat}</span>
+                            <span class="text-slate-700 dark:text-slate-200">${esc(cat)}</span>
                             <span class="text-teal-600 dark:text-teal-400">${count} أسئلة (${percentage}%)</span>
                         </div>
                         <div class="w-full bg-slate-200 dark:bg-slate-600 h-2.5 rounded-full overflow-hidden">
@@ -658,6 +1090,7 @@
         let currentExamIndex = 0;
         let examScore = 0;
         let examTimerInterval = null;
+        let examMissed = [];
 
         function resetExamView() {
             document.getElementById('exam-config').classList.remove('hidden');
@@ -677,8 +1110,22 @@
             const numQ = parseInt(document.getElementById('exam-num-q').value) || 10;
             const timeMins = parseInt(document.getElementById('exam-time').value) || 5;
 
-            let shuffled = [...activeQ].sort(() => 0.5 - Math.random());
-            examQuestions = shuffled.slice(0, numQ);
+            const n = Math.min(numQ, activeQ.length);
+            let picked = [];
+            if (document.getElementById('exam-focus-weak').checked) {
+                // weak (hard) questions are more likely to be picked
+                const pool = [...activeQ];
+                const wf = q => pickWeight(q, Date.now());
+                while (picked.length < n && pool.length) {
+                    const q = pickWeighted(pool, wf);
+                    picked.push(q);
+                    pool.splice(pool.indexOf(q), 1);
+                }
+            } else {
+                picked = [...activeQ].sort(() => 0.5 - Math.random()).slice(0, n);
+            }
+            examQuestions = picked;
+            examMissed = [];
             
             currentExamIndex = 0;
             examScore = 0;
@@ -700,7 +1147,7 @@
             ul.innerHTML = '';
             
             let answers = Array.isArray(q.answer) ? q.answer : q.answer.split('\n');
-            answers.filter(a => a.trim()!== '').forEach(a => { ul.innerHTML += `<li>${a}</li>`; });
+            answers.filter(a => a.trim()!== '').forEach(a => { ul.innerHTML += `<li>${esc(a)}</li>`; });
 
             const innerCard = document.getElementById('exam-card-inner');
             snapCardToFront(innerCard);
@@ -720,6 +1167,12 @@
         function scoreExam(isCorrect) {
             if (isCorrect) playSuccess(); else playError();
             if (isCorrect) examScore++;
+
+            // the exam result also moves the question's difficulty
+            const asked = examQuestions[currentExamIndex];
+            const real = questions.find(x => x.id === asked.id);
+            if (real) { applyGrade(real, isCorrect ? 'medium' : 'hard'); saveQuestions(); }
+            if (!isCorrect) examMissed.push(asked);
             currentExamIndex++;
 
             if(currentExamIndex >= examQuestions.length) {
@@ -735,6 +1188,23 @@
             document.getElementById('exam-results').classList.remove('hidden');
             document.getElementById('exam-score-correct').innerText = examScore;
             document.getElementById('exam-score-total').innerText = examQuestions.length;
+            const pct = examQuestions.length ? Math.round(examScore / examQuestions.length * 100) : 0;
+            document.getElementById('exam-score-pct').innerText = `(${pct}%)`;
+
+            const missedBox = document.getElementById('exam-missed');
+            if (examMissed.length) {
+                missedBox.classList.remove('hidden');
+                missedBox.innerHTML = '<h3 class="font-bold text-slate-700 dark:text-slate-200 mb-2">راجع هذه الأسئلة (زادت صعوبتها وبترجع لك أكثر):</h3>' +
+                    examMissed.map(q => {
+                        const answers = Array.isArray(q.answer) ? q.answer : String(q.answer).split('\n').filter(a => a.trim());
+                        return `<details class="bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900 rounded-lg p-3">
+                            <summary class="cursor-pointer font-bold text-slate-700 dark:text-slate-200" dir="ltr">${esc(q.question)}</summary>
+                            <ul class="list-disc pl-6 mt-2 text-left font-semibold text-slate-600 dark:text-slate-300" dir="ltr">${answers.map(a => `<li>${esc(a)}</li>`).join('')}</ul>
+                        </details>`;
+                    }).join('');
+            } else {
+                missedBox.classList.add('hidden');
+            }
         }
 
         function resetExam() {
@@ -892,16 +1362,26 @@ Number of Questions: `;
             );
 
             filtered.forEach(q => {
+                ensureSrs(q);
+                let dueCell;
+                if (!q.reps) dueCell = 'جديد';
+                else {
+                    const ago = Math.floor((Date.now() - q.lastSeen) / DAY_MS);
+                    dueCell = ago <= 0 ? 'اليوم' : (ago === 1 ? 'أمس' : 'قبل ' + ago + ' يوم');
+                }
                 let weightBadge = '';
-                if(q.weight === 1) weightBadge = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">سهل</span>';
+                if(!q.reps) weightBadge = '<span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs">جديد</span>';
+                else if(q.weight === 1) weightBadge = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">سهل</span>';
                 else if(q.weight === 20) weightBadge = '<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">صعب</span>';
                 else weightBadge = '<span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs">متوسط</span>';
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                        <td class="p-3"><span class="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-xs font-bold text-slate-500 dark:text-slate-300">${q.category}</span></td>
-                        <td class="p-3 truncate max-w-xs" title="${q.question}" dir="ltr">${q.question}</td>
+                        <td class="p-3 text-center"><button onclick="toggleFavById('${q.id}')" class="text-lg ${q.fav ? 'text-amber-400' : 'text-slate-300 hover:text-amber-400'} transition-colors"><i class="${q.fav ? 'fa-solid' : 'fa-regular'} fa-star"></i></button></td>
+                        <td class="p-3"><span class="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-xs font-bold text-slate-500 dark:text-slate-300">${esc(q.category)}</span></td>
+                        <td class="p-3 truncate max-w-xs" title="${esc(q.question)}" dir="ltr">${esc(q.question)}</td>
                         <td class="p-3">${weightBadge}</td>
+                        <td class="p-3 text-xs text-slate-500 dark:text-slate-400">${dueCell}</td>
                         <td class="p-3 text-center">
                             <button onclick="deleteQuestion('${q.id}')" class="text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-950/40 p-2 rounded-lg transition-colors">
                                 <i class="fa-solid fa-trash"></i>
@@ -928,9 +1408,8 @@ Number of Questions: `;
             }
         }
 
-        // Initialize App on load
-        updateCategoryDropdowns();
-        initStudyMode();
+        // Initialize App on load (async: waits for IndexedDB)
+        initApp();
     </script>
 </body>
 </html>
